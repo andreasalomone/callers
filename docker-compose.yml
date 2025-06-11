@@ -31,8 +31,9 @@ services:
   collector:
     build:
       context: ./services/collector
+      dockerfile: Dockerfile
     volumes:
-      - ./services/collector:/app
+      - ./services/collector/app:/app/app
       - ./services/collector/channels.yml:/app/channels.yml
       - collector_session:/app/session
     env_file:
@@ -51,7 +52,7 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - api
 

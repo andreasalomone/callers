@@ -53,7 +53,9 @@ export function useMessageFeed() {
 
     // Cleanup on component unmount
     return () => {
-      ws.current?.close();
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current?.close();
+      }
     };
   }, []);
 

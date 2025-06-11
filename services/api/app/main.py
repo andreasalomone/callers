@@ -41,13 +41,34 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-async def db_listener():
-    """Listens for notifications from the database and broadcasts messages."""
-    conn = await asyncpg.connect(DATABASE_URL)
-    await conn.add_listener("new_message", notification_handler)
-    print("Database listener started.")
+async def db_listener(manager: ConnectionManager):
+    """Listens for new message notifications and broadcasts them."""
+    conn = None
     while True:
-        await asyncio.sleep(1) # Keep the connection alive
+        try:
+            if conn is None or conn.is_closed():
+                print("Connecting to database for listener...")
+                conn = await asyncpg.connect(dsn=DATABASE_URL)
+                await conn.add_listener("new_message", notification_handler)
+                print("Database listener connected and listening.")
+
+            # The `await` here is important. It allows the loop to yield
+            # and prevents it from busy-waiting, while also checking for connection health.
+            await conn.fetchval('SELECT 1')
+            await asyncio.sleep(5)
+
+        except (asyncpg.exceptions.PostgresConnectionError, OSError) as e:
+            print(f"Database listener connection error: {e}. Reconnecting in 5 seconds...")
+            if conn and not conn.is_closed():
+                await conn.close()
+            conn = None
+            await asyncio.sleep(5)
+        except Exception as e:
+            print(f"An unexpected error occurred in the DB listener: {e}")
+            if conn and not conn.is_closed():
+                await conn.close()
+            conn = None
+            await asyncio.sleep(10)
 
 async def notification_handler(connection, pid, channel, payload):
     """Handles the notification from PostgreSQL."""
@@ -60,12 +81,13 @@ async def notification_handler(connection, pid, channel, payload):
         if message:
             # Pydantic model to dict, then to JSON string
             message_schema = schemas.Message.from_orm(message)
-            message_json = message_schema.json()
+            message_json = message_schema.model_dump_json()
             await manager.broadcast(message_json)
 
 @app.on_event("startup")
 async def startup_event():
-    asyncio.create_task(db_listener())
+    # Pass the manager instance to the listener
+    asyncio.create_task(db_listener(manager))
 
 @app.get("/api/feed", response_model=list[schemas.Message])
 async def read_messages(skip: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):

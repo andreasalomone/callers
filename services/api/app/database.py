@@ -7,7 +7,9 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+# We use the simple "postgresql://" URL from the .env file,
+# but we explicitly tell SQLAlchemy to use the "asyncpg" driver.
+engine = create_async_engine(f"postgresql+asyncpg://{DATABASE_URL.split('://')[1]}", echo=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 async def get_db():
