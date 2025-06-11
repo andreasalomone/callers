@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+/callers/
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # CI pipeline for linting, testing, and building
+├── services/
+│   ├── api/                   # Handles serving data to the frontend
+│   │   ├── app/
+│   │   │   ├── __init__.py
+│   │   │   ├── main.py          # FastAPI app, endpoints (/feed, /stream), websocket
+│   │   │   ├── crud.py          # Database interaction logic (Read)
+│   │   │   ├── models.py        # SQLAlchemy ORM models (declarative)
+│   │   │   ├── schemas.py       # Pydantic schemas for API validation & serialization
+│   │   │   └── database.py      # DB session management
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   └── collector/             # Ingests data from Telegram
+│       ├── app/
+│       │   ├── __init__.py
+│       │   ├── main.py          # Main collector logic
+│       │   ├── config.py        # Handles channel list from channels.yml
+│       │   ├── storage.py       # DB interaction logic (Write)
+│       │   └── telegram_client.py # Telethon client wrapper
+│       ├── tests/
+│       ├── channels.yml         # Admin-editable list of target channels (FR-5)
+│       ├── Dockerfile
+│       └── requirements.txt
+├── frontend/
+│   ├── app/
+│   │   └── page.tsx             # Main page component
+│   ├── components/
+│   │   ├── Feed.tsx             # Renders the message list
+│   │   └── MessageCard.tsx      # Renders a single message
+│   ├── hooks/
+│   │   └── useMessageFeed.ts    # Manages WebSocket connection & feed state
+│   ├── lib/
+│   │   └── types.ts             # Shared frontend types
+│   ├── cypress/
+│   │   └── e2e/
+│   │       └── feed_smoke_test.cy.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── next.config.mjs
+├── .dockerignore
+├── .env.example               # Template for required environment variables
+├── docker-compose.yml         # Orchestrates the full stack locally
+└── README.md                  # Project overview and setup instructions

@@ -1,0 +1,229 @@
+---
+description: To Deliver the MVP (v1.0)
+globs: 
+alwaysApply: false
+---
+**Product Design Requirements (PDR)**
+**Project:** Telegram Trading-Calls Feed — MVP & Growth Path
+**Revision:** v1.0 • 11 Jun 2025 • Europe/Rome
+**Author:** “Google-Level Dev Team in a Box”
+
+---
+
+### 1  Purpose & Vision
+
+Build a **lean, web-based feed** that aggregates messages from a curated set of public Telegram channels (crypto “call groups”) and streams them to traders in real time.
+The MVP surfaces only what matters **now** (channel, message text, timestamp). Future iterations layer on analytics (leaderboard), channel onboarding, and monetisation—without rewriting core logic.
+
+### 2  Product Goals & Success Metrics
+
+| Goal                             | KPI                          | Target (MVP)  |
+| -------------------------------- | ---------------------------- | ------------- |
+| Deliver real-time, unified feed  | End-to-end latency (TG → UI) | ≤ 3 s p95     |
+| Always show newest message first | Ordering accuracy            | 100 %         |
+| Zero missed messages             | Message loss ratio           | < 0.01 %      |
+| Effortless UX                    | Page interactive             | < 1 s on 3 G  |
+| Ready for extension              | Code churn after v2          | < 5 % of core |
+
+### 3  Scope
+
+#### 3.1 MVP (Sprint 0 – Sprint 1)
+
+1. **Feed UI** listing
+   `Channel Name • Message body • HH:MM:ss DD-MMM-YYYY`
+2. **Real-time updates** pushed via WebSocket/SSE.
+3. **Back-end Telegram collector** that subscribes to N public channels (links provided by product owner).
+4. **Basic admin list** (env-var or YAML) of channels.
+
+#### 3.2 Deferred / vNext
+
+* **Performance leaderboard** using Solana token symbols extracted from messages → ATH % via Dexscreener free API.
+* **Channel self-service portal** (OAuth TG, add ref links, etc.).
+* Alerts, filters, mobile PWA, social-share, dark mode, etc.
+
+### 4  Personas & Key User Stories
+
+| Persona                                 | Pain-point                                              | User Story (INVEST)                                                                                 |
+| --------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Active Crypto Trader (“Aria”)**       | Juggling 10 Telegram groups, risk of missing hot calls. | “As a trader I want one live stream of vetted channels so I never miss a call.”                     |
+| **Channel Owner (“Call-Guru”)** (vNext) | Wants transparent track record to attract followers.    | “As a caller I want my channel’s calls and performance automatically ranked so I gain credibility.” |
+
+### 5  Functional Requirements (FR)
+
+| ID       | Description                             | Acceptance Criteria                                                    | Principles Met   |
+| -------- | --------------------------------------- | ---------------------------------------------------------------------- | ---------------- |
+| **FR-1** | Ingest messages from public TG channels | Collector stores every new message with UTC timestamp                  | SRP, KISS        |
+| **FR-2** | Persist messages                        | Schematized row in `messages` table, no duplicates                     | DRY              |
+| **FR-3** | Publish real-time feed                  | Front-end receives push < 3 s after TG publish                         | KISS             |
+| **FR-4** | Display feed                            | Chronological-desc order, virtualised list, auto-scroll pause on hover | POLA             |
+| **FR-5** | Admin update channel list               | Hot-reload via config file; no redeploy                                | OCP              |
+| **FR-6** | Health & metrics endpoint               | `/healthz` returns 200, `/metrics` Prometheus-ready                    | YAGNI (minimal)  |
+| **FR-7** | Deployment scripts                      | `docker compose up` runs full stack locally                            | SRP              |
+| **FR-8** | Unit & integration tests                | ≥80 % line coverage back end; Cypress E2E smoke                        | Testing Strategy |
+
+*(Leaderboard, auth, etc. captured in Appendix A as Future FRs.)*
+
+### 6  Non-Functional Requirements (NFR)
+
+| Area              | Requirement                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| **Performance**   | p95 latency ≤ 3 s; >5 k msgs/hr sustained                        |
+| **Availability**  | 99.5 % (single region)                                           |
+| **Scalability**   | Horizontal worker scale; DB partition-ready                      |
+| **Security**      | TLS 1.3; no TG tokens in client; OWASP Top-10 checks             |
+| **Privacy**       | Store only channel messages, no personal data                    |
+| **Observability** | Structured logs (JSON), Prometheus metrics, OpenTelemetry traces |
+
+### 7  System Architecture (High-Level)
+
+```
+┌───────────────────┐     WebSocket/SSE   ┌───────────────┐
+│   Front-End SPA   │◀────────────────────│   API-Gateway │
+└───────────────────┘                    └──────┬────────┘
+        ▲  ▲                                     │REST
+        │  │GraphQL (optional)                   │
+        │  └─────────────┐                  ┌────▼────────┐
+        │                │                  │Message Store│ (PostgreSQL)
+        │                │ SQL/Cache        └────┬────────┘
+┌───────┴────────┐   ┌───▼──────────┐            │
+│   Auth (vNext) │   │ Query API    │            │
+└────────────────┘   └──────────────┘            │
+                       ▲                         │
+                       │ gRPC                    │
+                 ┌─────┴─────┐                   │
+                 │  Ingestor │────────TG MTProto─┘
+                 └───────────┘
+```
+
+* **Collector (Ingestor):** Stateless worker built on **\[tdlib]\[1]** or \[python-telegram-client]. Subscribes to N channels, streams messages into **PostgreSQL** via a lightweight queue (e.g. Redis Streams).
+* **Query/API Service:** FastAPI (Python) or NestJS (TS) exposing REST for MVP; GraphQL schema kept open/closed-ready for future.
+* **Websocket Gateway:** Handles multiplexing feed updates, decoupled via PubSub interface (Interface Segregation).
+* **Front-End:** **Next.js 14** + React 18, SWR for feed + Tailwind UI.
+
+> **Why not poll?** Push architecture guarantees lower latency & bandwidth.
+> **Why PostgreSQL now?** KISS: one durable store. Sharding, CQRS, or TSDB (Timescale) added only if required (YAGNI).
+
+### 8  Data Model (MVP)
+
+| Table                 | Field           | Type           | Notes             |
+| --------------------- | --------------- | -------------- | ----------------- |
+| **channels**          | `id` PK         | UUID           | internal ID       |
+|                       | `telegram_id`   | BIGINT         | TG channel ID     |
+|                       | `display_name`  | TEXT           | local label       |
+| **messages**          | `id` PK         | BIGINT         | TG message ID     |
+|                       | `channel_id` FK | UUID           | ↗ channels        |
+|                       | `body`          | TEXT           | raw markdown/html |
+|                       | `created_at`    | TIMESTAMPTZ    | from TG           |
+|                       | `ingested_at`   | TIMESTAMPTZ    | server clock      |
+| **events** (optional) | snowflake       | event sourcing |                   |
+
+### 9  API Design (excerpt – MVP)
+
+| Endpoint                     | VERB    | SRP Payload           | Auth            | Notes                       |
+| ---------------------------- | ------- | --------------------- | --------------- | --------------------------- |
+| `/api/feed/stream`           | GET     | N/A (WS upgrade)      | none            | subscribes to live messages |
+| `/api/feed?limit=50&before=` | GET     | JSON list of messages | none            | pagination                  |
+| `/api/admin/channels`        | GET/PUT | YAML/JSON list        | token in header | hot-reload config           |
+
+**Interfaces & Extension Points**
+
+```ts
+// src/core/telegram/ITelegramClient.ts (ISP)
+export interface ITelegramClient {
+  subscribeToChannel(id: string, cb: (msg: TgMessage) => void): void;
+}
+```
+
+Concrete implementations (`TdLibClient`, `MockClient`) follow LSP, enabling easy swap in tests or new provider.
+
+### 10  Security, Privacy, Compliance
+
+| Topic       | Measure                                                |
+| ----------- | ------------------------------------------------------ |
+| TG API Keys | Stored in Vault/K8s Secret; never shipped to front-end |
+| Rate Limits | Collector: exponential back-off; APIGW: 100 req/min IP |
+| GDPR        | No PII stored; messages are public content             |
+| OWASP       | Automated ZAP scan in CI; Snyk for deps                |
+
+### 11  Quality & Testing Strategy
+
+* **Unit tests** (pytest / Jest) for message parsing, storage, WebSocket broadcast.
+* **Contract tests**: Mock TG client; assert Liskov compliance.
+* **Integration tests**: docker-compose up full stack, seed fixture messages, verify feed latency.
+* **E2E**: Cypress script loads UI, asserts newest message appears.
+* **Manual smoke** before production deploy.
+* **Coverage target**: 80 % unit, 60 % overall.
+
+### 12  Dev-Ops & Workflow
+
+1. **Repo layout**: mono-repo (`/frontend`, `/services/collector`, `/services/api`).
+2. **GitHub Flow**: `main` protected, PR-based. Commit style: *Conventional Commits*.
+3. **CI**: GitHub Actions → lint, test, build images.
+4. **CD**: Push to `registry:version`, ArgoCD deploy to staging → prod after approval.
+5. **Observability stack**: Loki / Prometheus / Grafana dashboards.
+
+### 13  Roadmap & Milestones (high-level)
+
+| Sprint | Length | Deliverables                                   |
+| ------ | ------ | ---------------------------------------------- |
+| 0      | 1 wk   | Repo, docker compose skeleton, CI ★            |
+| 1      | 2 wk   | Collector ↔ DB ↔ API, basic feed UI (MVP beta) |
+| 2      | 1 wk   | Hardening, metrics, docs → MVP launch          |
+| 3      | 2 wk   | Dexscreener integration PoC, token parser lib  |
+| 4      | 2 wk   | Performance leaderboard v1                     |
+| 5      | 2 wk   | TG OAuth & channel claims                      |
+
+### 14  Risks & Mitigations
+
+| Risk                      | Impact             | Probability | Mitigation                               |
+| ------------------------- | ------------------ | ----------- | ---------------------------------------- |
+| TG rate-limit/ban         | Loss of data       | Low-Med     | Rotate IPs, handle 429, respect ToS      |
+| Dexscreener API changes   | Leaderboard broken | Med         | Abstract strategy, feature flag          |
+| Message flood             | Latency ↑          | Med         | Buffer & back-pressure, horizontal scale |
+| Future paywall for TG API | Cost ↑             | Low         | Keep ITelegramClient abstraction         |
+
+### 15  Open Questions
+
+1. Exact list & size of channels? (affects rate limits)
+2. Message retention policy (days/months)?
+3. Multi-chain support beyond Solana?
+4. SLA for leaderboard accuracy?
+
+---
+
+## Appendix A — Future Functional Requirements (Snapshot)
+
+* **FR-L1** Leaderboard calculation cron job (hourly).
+* **FR-L2** Performance scoring algorithm (config-driven).
+* **FR-A1** TG OAuth login (passport.js).
+* **FR-A2** Channel verification workflow, badge on UI.
+* **FR-M1** Monetisation toggle (sponsor banners, ref links).
+
+---
+
+### Design Principles Traceability Matrix
+
+| Principle          | How It’s Reflected                                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **SRP**            | Collector, API, Gateway, UI each own one concern.                                                                            |
+| **OCP**            | Strategy interfaces (`ITelegramClient`, `ITokenPriceProvider`). New sources plug in without touching core.                   |
+| **LSP**            | All concrete providers honour base contracts; mocks drop-in for tests.                                                       |
+| **ISP**            | Front-end depends only on `FeedService`, not on full API surface.                                                            |
+| **DIP**            | High-level logic depends on abstractions in `/core/*`, implementations injected via DI container (awilix / fastapi.Depends). |
+| **KISS**           | Single DB, one-page UI, no micro-services explosion.                                                                         |
+| **DRY**            | Central `promptTemplates/`, shared DTOs, code-gen OpenAPI for client hooks.                                                  |
+| **YAGNI**          | Skip auth, analytics, alerts in MVP; architecture keeps hooks open.                                                          |
+| **POLA**           | Intuitive REST verbs, clear timestamp zone (UTC), no magic auto-scroll when user pauses.                                     |
+| **Easy to Delete** | Feature flags (LaunchDarkly lite YAML); isolated modules.                                                                    |
+
+---
+
+### 16  Glossary
+
+* **Call / Caller** — A Telegram post recommending purchase of a token; the author/channel doing so.
+* **ATH** — All-Time-High price of a token.
+* **DEX** — Decentralised Exchange.
+
+---
+
+**End of PDR** – Ready for build & review 🚀

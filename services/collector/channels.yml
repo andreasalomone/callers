@@ -1,0 +1,6 @@
+# Add public channel usernames (without the @) or public channel links.
+# Example:
+# - some_channel_username
+# - https://t.me/another_channel
+channels:
+  - "cryptopumpnews" 

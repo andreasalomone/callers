@@ -1,0 +1,10 @@
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.vscode
+.env
+.git
+.gitignore
+README.md
+/frontend/node_modules
+/frontend/.next 
