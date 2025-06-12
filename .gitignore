@@ -169,4 +169,12 @@ test.db
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local 
+.env.production.local
+
+# Test files and configurations
+/frontend/cypress/
+/frontend/cypress.config.ts
+/services/api/tests/
+/services/collector/tests/
+/services/collector/requirements-dev.txt
+/services/api/requirements-test.txt 

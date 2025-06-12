@@ -1,4 +1,4 @@
-import Feed from "@/components/Feed";
+import Feed from "@/components/ui/Feed";
 
 export default function Home() {
   return (

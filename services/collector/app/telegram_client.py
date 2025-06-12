@@ -105,7 +105,7 @@ async def fetch_and_save_history(channel, limit=50):
     print(f"Finished saving history for {channel}.")
 
 
-def start_client():
+async def start_client():
     """Starts the telethon client and adds the new message event handler."""
     
     # Register the event handler
@@ -113,7 +113,8 @@ def start_client():
 
     logging.info("Attempting to start Telethon client with retry logic...")
     try:
-        _connect_with_retry()
+        # The client will use the default event loop from asyncio.run()
+        await client.start()
         logging.info("Client started successfully.")
     except Exception as e:
         logging.critical(f"Failed to start Telethon client after multiple retries: {e}")
@@ -131,15 +132,15 @@ def start_client():
         return
 
     # Fetch history before starting the event loop
-    async def initial_fetch():
-        logging.info("Performing initial fetch of message history...")
-        # Use the dynamic getter for channels
-        for channel in config.get_channels():
-            await fetch_and_save_history(channel)
-        logging.info("Initial fetch complete.")
+    logging.info("Performing initial fetch of message history...")
+    # Use the dynamic getter for channels
+    for channel in config.get_channels():
+        await fetch_and_save_history(channel)
+    logging.info("Initial fetch complete.")
 
-    client.loop.run_until_complete(initial_fetch())
-
-    # The log message will now be dynamic, showing the current state on startup.
+    # The `run_until_disconnected` is a blocking call that runs its own loop.
+    # To integrate with our main async loop, we just need to keep the script alive.
+    # The client is already running in the background at this point.
     logging.info(f"Listening for messages from: {config.get_channels()}")
-    client.run_until_disconnected() 
+    # We don't need run_until_disconnected as our main() function will keep the loop alive.
+    # If we were to use it, it would block here. We just need the client to be connected. 

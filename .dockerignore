@@ -27,6 +27,14 @@ htmlcov/
 test.db
 services/api/test.db
 
+# Test files and configurations
+/frontend/cypress/
+/frontend/cypress.config.ts
+/services/api/tests/
+/services/collector/tests/
+/services/collector/requirements-dev.txt
+/services/api/requirements-test.txt
+
 # Node.js modules (the builder stage should install them)
 node_modules/
 .next/

@@ -6,7 +6,14 @@ async def main():
     await storage.setup_database()
     print("Database setup complete.")
 
-    telegram_client.start_client()
+    await telegram_client.start_client()
+    
+    # Keep the main coroutine alive to allow the client to run in the background.
+    print("Collector is running. Press Ctrl+C to stop.")
+    try:
+        await asyncio.Event().wait()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("Collector shutting down.")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
