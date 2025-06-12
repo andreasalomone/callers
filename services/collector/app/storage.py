@@ -5,7 +5,12 @@ from datetime import datetime
 
 from . import config
 
-engine = create_async_engine(config.DATABASE_URL)
+# Ensure the DATABASE_URL uses the asyncpg driver
+db_url = config.DATABASE_URL
+if db_url and db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+engine = create_async_engine(db_url)
 metadata = MetaData()
 
 # Define an async session maker

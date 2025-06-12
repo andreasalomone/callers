@@ -42,6 +42,32 @@ def _connect_with_retry():
     client.start()
 
 
+async def handle_new_message(event):
+    """
+    This function is called whenever a new message is received.
+    It checks if the message is from a monitored channel and saves it.
+    """
+    # Hot-reloadable channel list
+    channels = config.get_channels()
+    if not hasattr(event, "chat") or not event.chat or not hasattr(event.chat, "title"):
+        return
+
+    is_target_channel = event.chat.title in channels or str(event.chat.id) in channels
+
+    if not is_target_channel:
+        return
+
+    logging.info(f"New message from channel {event.chat.title}")
+
+    await storage.save_message(
+        channel_id=event.chat.id,
+        channel_name=event.chat.title,
+        message_id=event.message.id,
+        body=event.message.text,
+        created_at=event.message.date,
+    )
+
+
 async def fetch_and_save_history(channel, limit=50):
     """Fetches the recent message history of a channel and saves it."""
     print(f"Fetching message history for {channel}...")
@@ -82,30 +108,8 @@ async def fetch_and_save_history(channel, limit=50):
 def start_client():
     """Starts the telethon client and adds the new message event handler."""
     
-    @client.on(events.NewMessage())
-    async def handle_new_message(event):
-        """This function is called whenever a new message is received."""
-        # Hot-reloadable channel list
-        channels = config.get_channels()
-        # The `event.chat` can be None for some events, and `title` might not exist.
-        # We also need to handle both channel names and IDs.
-        if not hasattr(event, "chat") or not event.chat or not hasattr(event.chat, "title"):
-            return
-
-        is_target_channel = event.chat.title in channels or event.chat.id in channels
-
-        if not is_target_channel:
-            return
-
-        logging.info(f"New message from channel {event.chat.title}")
-        
-        await storage.save_message(
-            channel_id=event.chat.id,
-            channel_name=event.chat.title,
-            message_id=event.message.id,
-            body=event.message.text,
-            created_at=event.message.date,
-        )
+    # Register the event handler
+    client.on(events.NewMessage())(handle_new_message)
 
     logging.info("Attempting to start Telethon client with retry logic...")
     try:

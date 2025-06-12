@@ -1,6 +1,5 @@
 telethon
 sqlalchemy
-psycopg2
 python-dotenv
 pyyaml
 asyncpg

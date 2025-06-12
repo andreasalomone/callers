@@ -2,6 +2,7 @@ import asyncio
 import asyncpg
 import json
 import os
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,17 @@ from .database import get_db, DATABASE_URL
 
 load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Pass the manager instance to the listener
+    print("Starting up and initializing DB listener...")
+    listener_task = asyncio.create_task(db_listener(manager))
+    yield
+    # Shutdown
+    print("Shutting down, cancelling listener task...")
+    listener_task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 
 # Instrument the app with Prometheus metrics
 Instrumentator().instrument(app).expose(app)
@@ -100,11 +111,6 @@ async def notification_handler(connection, pid, channel, payload):
             message_schema = schemas.Message.from_orm(message)
             message_json = message_schema.model_dump_json()
             await manager.broadcast(message_json)
-
-@app.on_event("startup")
-async def startup_event():
-    # Pass the manager instance to the listener
-    asyncio.create_task(db_listener(manager))
 
 @app.get("/healthz", tags=["health"])
 async def health_check():
