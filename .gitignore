@@ -92,6 +92,8 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -161,6 +163,7 @@ Thumbs.db
 *.sqlite3
 services/collector/*.session
 services/api/test.db
+test.db
 
 # Local environment files
 .env.local

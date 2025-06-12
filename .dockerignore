@@ -1,10 +1,49 @@
-**/__pycache__
-**/*.pyc
-**/.pytest_cache
-**/.vscode
-.env
-.git
+# Git files
+.git/
 .gitignore
+
+# Docker files
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+
+# Python virtual environment
+.venv/
+env/
+venv/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+*.db
+*.sqlite3
+test.db
+services/api/test.db
+
+# Node.js modules (the builder stage should install them)
+node_modules/
+.next/
+npm-debug.log*
+yarn-debug.log*
+
+# OS-specific files
+.DS_Store
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# Local environment files
+.env
+.env.local
+
 README.md
 /frontend/node_modules
 /frontend/.next 
