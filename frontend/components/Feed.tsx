@@ -7,11 +7,11 @@ export default function Feed() {
   const { messages, isLoading, error } = useMessageFeed();
 
   if (isLoading) {
-    return <p className="text-gray-400">Loading feed...</p>;
+    return <p className="text-muted-foreground">Loading feed...</p>;
   }
 
   if (error) {
-    return <p className="text-red-500">Error: {error}</p>;
+    return <p className="text-destructive">Error: {error}</p>;
   }
 
   return (

@@ -1,0 +1,4 @@
+# Development and testing dependencies for the collector service
+pytest
+pytest-asyncio
+pytest-mock 

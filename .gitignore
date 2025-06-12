@@ -151,4 +151,19 @@ docker-compose.override.yml
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Custom Ignores
+*.session
+*.db
+*.db-journal
+*.log
+*.sqlite3
+services/collector/*.session
+services/api/test.db
+
+# Local environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 

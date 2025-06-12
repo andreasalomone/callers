@@ -3,4 +3,5 @@ uvicorn[standard]
 sqlalchemy
 # psycopg2-binary is a synchronous driver, we need an async one
 asyncpg
-python-dotenv 
+python-dotenv
+prometheus-fastapi-instrumentator

@@ -1,5 +1,11 @@
 import { Message } from "@/lib/types";
 import { format } from "date-fns";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface MessageCardProps {
   message: Message;
@@ -7,14 +13,18 @@ interface MessageCardProps {
 
 export default function MessageCard({ message }: MessageCardProps) {
   return (
-    <div className="w-full p-4 mb-4 bg-gray-800 rounded-lg shadow">
-      <div className="flex justify-between items-center mb-2">
-        <span className="font-bold text-blue-400">{message.channel.name}</span>
-        <span className="text-xs text-gray-400">
+    <Card className="w-full mb-4">
+      <CardHeader className="flex flex-row justify-between items-center p-4">
+        <CardTitle className="text-base font-bold text-primary">
+          {message.channel.name}
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
           {format(new Date(message.created_at), "HH:mm:ss dd-MMM-yyyy")}
-        </span>
-      </div>
-      <p className="text-gray-300 whitespace-pre-wrap">{message.body}</p>
-    </div>
+        </p>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <p className="text-card-foreground whitespace-pre-wrap">{message.body}</p>
+      </CardContent>
+    </Card>
   );
 } 
